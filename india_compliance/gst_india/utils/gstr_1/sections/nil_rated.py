@@ -1,10 +1,9 @@
-"""Nil rated, exempted and non-GST supplies, totalled by who bought and from where (table 8).
+"""Nil rated, exempted and non-GST supplies, by who bought and from where (table 8).
 
 Portal:    {inv: [{sply_ty: "INTRB2B", expt_amt: 123.45, nil_amt: 1470.85, ngsup_amt: 1258.5}]}
-Canonical: {"Nil-Rated, Exempted, Non-GST": {
-                "Inter-State supplies to registered persons": [
-                    {exempted_amount: 123.45, nil_rated_amount: 1470.85,
-                     non_gst_amount: 1258.5, total_taxable_value: 2852.8}]}}
+Canonical: {"Nil-Rated, Exempted, Non-GST": {"Inter-State supplies to registered persons": [
+                {exempted_amount: 123.45, nil_rated_amount: 1470.85,
+                 non_gst_amount: 1258.5, total_taxable_value: 2852.8}]}}
 """
 
 from itertools import chain
@@ -76,9 +75,9 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice, bucketed by the kind of supply it was.
+    """Books rows -> one row per invoice, bucketed by kind of supply.
 
-       {(_, "SINV-1"): {0.0: [item rows]}}
+    {(_, "SINV-1"): {0.0: [item rows]}}
     -> {"Nil-Rated, Exempted, Non-GST": {"Inter-State supplies to registered persons": [{...}]}}
     """
     output = {}
@@ -108,7 +107,7 @@ def from_books(grouped_rows):
 
         output.setdefault(first.invoice_type, []).append(row)
 
-    # nothing to report means no section at all, not an empty one
+    # no rows, no section
     return {SUBCATEGORY: output} if output else {}
 
 

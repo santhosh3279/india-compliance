@@ -1,15 +1,9 @@
 # Copyright (c) 2024, Resilient Tech and Contributors
 # See license.txt
 
-"""Tests for settling GSTR-1 amounts once, in the data layer.
+"""Tests for settling amounts once, in the data layer. Needs a site, no test records.
 
-Amounts used to be rounded separately by each section: the document sections rounded per invoice
-per rate, HSN rounded per HSN code across invoices, and the two totals then had to be forced to
-agree afterwards. Now the data layer settles each amount once and every section only adds up what
-it is given, so the totals agree whichever way the rows are grouped.
-
-Needs a site (rounding reads site settings) but no test records:
-    bench --site <site> run-tests --module india_compliance.gst_india.utils.gstr_1.test_rounding
+bench --site <site> run-tests --module india_compliance.gst_india.utils.gstr_1.test_rounding
 """
 
 import unittest
@@ -53,11 +47,7 @@ class TestSettleAmounts(unittest.TestCase):
         self.assertEqual(flt(sum(r.taxable_value for r in rows), 2), flt(0.333 * 3, 2))
 
     def test_the_same_rows_add_up_the_same_grouped_any_other_way(self):
-        """This is the property the HSN reconciliation used to fake.
-
-        The document sections group by invoice and rate; HSN groups by HSN code across invoices.
-        Both are sums of the same settled rows, so both land on the same grand total.
-        """
+        """The property the HSN reconciliation used to fake: same rows, any grouping, same total."""
         rows, _ = settle(
             [
                 row("A", 18, "1001", cgst_amount=8395.11),
@@ -118,12 +108,7 @@ class TestExactSums(unittest.TestCase):
     """Adding up must not reintroduce the drift that settling removed."""
 
     def test_adding_in_a_loop_drifts_where_adding_at_once_does_not(self):
-        """Why one filed amount moved by a paisa.
-
-        `sum()` compensates for floating-point error; adding in a loop does not. The old mapper
-        added in a loop, so its totals drifted, and a total sitting exactly on a half-paisa then
-        rounded the wrong way.
-        """
+        """Why one filed amount moved by a paisa: `sum()` compensates for float error, a loop does not."""
         values = [0.1] * 10
 
         drifted = 0
@@ -181,11 +166,7 @@ class TestRoundingDifferenceReport(unittest.TestCase):
 
 class TestHsnRowsAddUp(unittest.TestCase):
     def test_document_value_equals_the_sum_of_its_own_parts(self):
-        """The portal checks this, and the replaced reconciliation broke it.
-
-        It adjusted the tax amounts after `document_value` had already been worked out, leaving the
-        row claiming a total its own columns no longer added up to.
-        """
+        """The portal checks this; the old reconciliation adjusted taxes after the total was worked out."""
         prepared = hsn.from_books(
             {
                 "HSN Summary": {

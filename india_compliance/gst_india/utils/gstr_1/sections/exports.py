@@ -1,12 +1,10 @@
-"""Exports — invoices shipped out of India, grouped by whether tax was paid (table 6A).
+"""Exports — invoices shipped out of India, by whether tax was paid (table 6A).
+
+The stored document type is the portal's own code; the readable name is the subcategory.
 
 Portal:    [{exp_typ: "WPAY", inv: [{inum: "81542", val: 995048.36, itms: [{txval: 10000}]}]}]
-Canonical: {"Export With Payment of Tax": {"81542": {document_type: "WPAY",
-                                                     document_number: "81542",
+Canonical: {"Export With Payment of Tax": {"81542": {document_type: "WPAY", document_number: "81542",
                                                      items: [{taxable_value: 10000}]}}}
-
-Unlike other categories the stored document type is the portal's own code, not a label -- the
-readable name is the subcategory the row is filed under.
 """
 
 from india_compliance.gst_returns.fields.gstr1 import DocField as doc
@@ -40,7 +38,7 @@ SUBCATEGORY_OF = {
     WITHOUT_TAX: SubCategory.EXPWOP.value,
 }
 
-# every subcategory exports report under
+# what exports report under
 SUBCATEGORIES = tuple(SUBCATEGORY_OF.values())
 
 ITEM_DEFAULTS = dict.fromkeys(s.ITEM_TOTALS_IGST, 0)
@@ -52,7 +50,7 @@ ITEM_MONEY = (raw.TAXABLE_VALUE, raw.IGST, raw.CESS)
 def to_canonical(gov_data):
     output = {}
 
-    # bucket per export type is created up front, so a type with no invoices still shows up
+    # bucket up front, so a type with no invoices still shows up
     for group in gov_data:
         export_type = group.get(raw.EXPORT_TYPE)
         invoices = output.setdefault(
@@ -79,7 +77,6 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice, for the subcategories this category reports."""
     return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 

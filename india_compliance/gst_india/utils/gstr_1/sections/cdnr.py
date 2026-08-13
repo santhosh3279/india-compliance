@@ -1,13 +1,12 @@
-"""Credit and debit notes against registered buyers, grouped by buyer (table 9B).
+"""Credit and debit notes against registered buyers, by buyer (table 9B).
+
+Stored negative, filed unsigned -- the portal reads the direction from the note type.
 
 Portal:    [{ctin: "24AANFA2641L1ZF", nt: [{ntty: "C", nt_num: "533515", val: 123123,
                                             itms: [{num: 1, itm_det: {txval: 5225.28}}]}]}]
 Canonical: {"Credit/Debit Notes (Registered)": {"533515": {transaction_type: "Credit Note",
                                                            items: [{taxable_value: -5225.28}],
                                                            total_taxable_value: -10450.56}}}
-
-A credit note reduces what is owed, so we store its amounts negative. The portal wants them
-unsigned and reads the direction from the note type instead.
 """
 
 from india_compliance.gst_returns.fields.gstr1 import CreditDebitNoteType, SubCategory
@@ -102,7 +101,6 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice, for the subcategories this category reports."""
     return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 

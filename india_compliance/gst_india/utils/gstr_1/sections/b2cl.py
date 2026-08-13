@@ -1,4 +1,4 @@
-"""B2CL — large invoices to unregistered buyers, grouped by place of supply (table 5).
+"""B2CL — large invoices to unregistered buyers, by place of supply (table 5).
 
 Portal:    [{pos: "05", inv: [{inum: "92661", itms: [{num: 1, itm_det: {txval: 10000}}]}]}]
 Canonical: {"B2C (Large)": {"92661": {place_of_supply: "05-Uttarakhand", document_number: "92661",
@@ -63,7 +63,6 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice, for the subcategories this category reports."""
     return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 
@@ -76,7 +75,6 @@ def to_gov(rows, company_gstin=""):
 
         return s.drop_zero_diff(out)
 
-    # grouped on the stored place of supply, reported as the portal's state number
     return s.groups_from_rows(
         rows,
         group_key=lambda row: row[doc.POS],

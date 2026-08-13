@@ -1,4 +1,4 @@
-"""B2CS — small sales to unregistered buyers, reported as one total per state and rate (table 7).
+"""B2CS — small sales to unregistered buyers, one total per state and rate (table 7).
 
 Portal:    [{typ: "OE", pos: "05", rt: 5, txval: 110, iamt: 5.5}]
 Canonical: {"B2C (Others)": {"05-Uttarakhand - 5.0": [{place_of_supply: "05-Uttarakhand",
@@ -30,7 +30,7 @@ KEYS = {
     raw.ERROR_MSG: doc.ERROR_MSG,
 }
 
-# the portal's only supported type here; "E" (e-commerce) is not reported separately
+# the only type the portal takes here
 OTHER_THAN_ECOMMERCE = "OE"
 
 MONEY = (
@@ -61,9 +61,9 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice per rate, grouped the way the portal totals them.
+    """Books rows -> one row per invoice per rate.
 
-       {(_, "SINV-1"): {5.0: [item rows]}}
+    {(_, "SINV-1"): {5.0: [item rows]}}
     -> {"B2C (Others)": {"05-Uttarakhand - 5.0": [{total_taxable_value: 110, tax_rate: 5.0}]}}
     """
     output = {}
@@ -87,7 +87,7 @@ def from_books(grouped_rows):
 
             output.setdefault(group_key(row), []).append(row)
 
-    # nothing to report means no section at all, not an empty one
+    # no rows, no section
     return {SUBCATEGORY: output} if output else {}
 
 

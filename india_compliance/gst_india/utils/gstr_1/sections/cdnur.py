@@ -1,11 +1,11 @@
 """Credit and debit notes against unregistered buyers and exports (table 9B).
 
+Same sign rule as registered notes: stored negative, filed unsigned.
+
 Portal:    [{ntty: "C", nt_num: "533515", typ: "B2CL", itms: [{num: 1, itm_det: {txval: 5225.28}}]}]
 Canonical: {"Credit/Debit Notes (Unregistered)": {"533515": {transaction_type: "Credit Note",
                                                              items: [{taxable_value: -5225.28}],
                                                              total_taxable_value: -5225.28}}}
-
-Same sign rule as registered notes: stored negative, filed unsigned.
 """
 
 from india_compliance.gst_returns.fields.gstr1 import DocField as doc
@@ -76,7 +76,6 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice, for the subcategories this category reports."""
     return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 

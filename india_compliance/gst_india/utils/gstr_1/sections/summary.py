@@ -1,8 +1,6 @@
 """The portal's own summary of a filed return, and the overview built from it.
 
-Read only -- the portal computes this, we never file it back. That is why the keys here are plain
-functions over one table instead of a reversible mapping like every other category: two portal
-keys ("sec_nm" for a section, "typ" for a line inside one) both become the row's description.
+Read only. Two portal keys both become the description, so this table does not reverse.
 
 Portal:    [{sec_nm: "B2B_4A", ttl_rec: 12, ttl_tax: 5000, ttl_igst: 900}]
 Canonical: {"summary": {"B2B Regular": {description: "B2B Regular", no_of_records: 12,
@@ -22,7 +20,7 @@ from . import _shared as s
 
 AMENDED = "(Amended)"
 
-# summary-only portal keys: "ttl_" is what was filed, "act_" what the portal recomputed
+# summary-only keys: "ttl_" what was filed, "act_" what the portal recomputed
 SECTION = "sec_nm"
 LINE_TYPE = "typ"
 SUB_SECTIONS = "sub_sections"
@@ -141,11 +139,11 @@ def read_row(entry):
 
     s.remap(row, doc.DESCRIPTION, SECTION_NAMES)
 
-    # document ranges count what was actually issued, not what was declared
+    # ranges count what was issued, not what was declared
     if entry.get(SECTION) == "DOC_ISSUE":
         row["no_of_records"] = entry.get(NET_DOC_ISSUED, 0)
 
-    # the portal files nil-rated without a taxable value; add one up to compare against books
+    # portal files nil-rated with no taxable value; add one up to compare against books
     elif entry.get(SECTION) == "NIL":
         row[doc.TAXABLE_VALUE] = s.sum_money(entry, NIL_AMOUNTS)
 
@@ -164,7 +162,7 @@ def to_canonical(gov_data):
 
         subsections = entry.get(SUB_SECTIONS, {})
 
-        # older summary APIs do not break sections down; fall back to computing our own
+        # older APIs do not break sections down; compute our own instead
         if not subsections:
             return {}
 
@@ -196,7 +194,7 @@ def to_overview(rows):
         if category not in by_description:
             continue
 
-        # amendments are collected into one closing line instead of shown per category
+        # amendments collect into one closing line
         for field in TOTAL_FIELDS:
             amended[field] += by_description.get(f"{category} {AMENDED}", {}).get(field) or 0
 

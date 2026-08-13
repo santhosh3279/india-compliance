@@ -1,11 +1,6 @@
-"""Named steps shared by every GSTR-1 category.
+"""Named steps shared by every category.
 
-Replaces the old `GovDataMapper.format_data`: each step has a name and is called on a visible
-line, instead of being dispatched from a formatter dict behind a `for_gov` flag.
-
-Two rules the package relies on:
-    reading   keep blanks, round nothing -- canonical must be able to rebuild the portal payload
-    writing   round money, then drop blanks at the JSON boundary, which is where the portal cares
+Read: keep blanks, round nothing. Write: round money, drop blanks at the JSON boundary.
 """
 
 from datetime import datetime
@@ -24,7 +19,6 @@ from india_compliance.gst_returns.fields.gstr1 import DocField as doc
 from india_compliance.gst_returns.fields.gstr1 import ItemField as item
 from india_compliance.gst_returns.fields.gstr1 import RawField as raw
 
-# state number -> state name
 STATE_NAMES = {number: name for name, number in STATE_NUMBERS.items()}
 
 # item amount -> the invoice total it adds up to
@@ -36,7 +30,7 @@ ITEM_TOTALS = {
     item.CESS: doc.CESS,
 }
 
-# the same five amounts as the books query names them
+# the same five amounts, as the books query names them and as an item does
 BOOKS_COLUMNS = {
     doc.TAXABLE_VALUE: "taxable_value",
     doc.IGST: "igst_amount",
@@ -45,10 +39,9 @@ BOOKS_COLUMNS = {
     doc.CESS: "total_cess_amount",
 }
 
-# and as an item names them
 ITEM_COLUMNS = {line: BOOKS_COLUMNS[total] for line, total in ITEM_TOTALS.items()}
 
-# a books row that is not a note is an invoice; the portal has codes only for the notes
+# no portal code for this one
 INVOICE = "Invoice"
 
 # inter-state categories carry no central or state tax
@@ -92,11 +85,7 @@ def with_defaults(row, defaults):
 
 
 def convert(row, field, using):
-    """Rewrite one field through the given function.
-
-    Blanks pass straight through -- there is nothing to convert, and the boundary drops them.
-    Zero does not: it is a real amount and still gets rounded.
-    """
+    """Rewrite one field. Blanks pass through; zero is an amount, so it still rounds."""
     if field in row and not is_blank(row[field]):
         row[field] = using(row[field])
 
@@ -175,11 +164,7 @@ def _uom(uom):
 
 
 def customer_name(gstin, cache):
-    """Name behind a GSTIN, looked up once per download.
-
-    The one canonical field not derived from the payload, so a row mapped before its Customer
-    exists keeps saying "Unknown". Moves to render time with the Excel rewrite.
-    """
+    """Name behind a GSTIN, looked up once. "Unknown" until the Customer exists."""
     if gstin not in cache:
         cache[gstin] = get_party_for_gstin(gstin, "Customer") or "Unknown"
 
@@ -270,15 +255,10 @@ def zero_totals():
 
 
 def invoice_rows_from_books(grouped_rows, subcategories):
-    """One canonical row per invoice, for the subcategories the caller reports.
+    """Books rows -> one row per invoice, for the subcategories the caller reports.
 
-    B2B, B2CL, exports and both kinds of credit note all report invoice by invoice, so they share
-    this builder and each passes the subcategories it owns. The row is a superset -- shipping
-    fields, buyer GSTIN and reverse charge are always written, and each category's key table drops
-    whatever it does not report.
-
-        {("B2B Regular", "S008400"): {18.0: [item rows]}}
-     -> {"B2B Regular": {"S008400": {document_number: "S008400", items: [{tax_rate: 18.0}]}}}
+    {("B2B Regular", "S008400"): {18.0: [item rows]}}
+    -> {"B2B Regular": {"S008400": {document_number: "S008400", items: [{tax_rate: 18.0}]}}}
     """
     output = {}
 
@@ -306,13 +286,13 @@ def invoice_rows_from_books(grouped_rows, subcategories):
             "items": [],
         }
 
-        # one item per tax rate, because that is how the portal wants a return reported
+        # one item per tax rate, as the portal wants it
         for rate, rows in rows_by_rate.items():
             line = {field: sum_column(rows, column) for field, column in ITEM_COLUMNS.items()}
             line[item.TAX_RATE] = rate
             row["items"].append(line)
 
-        # amounts arrive settled to two decimals, so the totals only have to add up
+        # amounts arrive settled, so totals only add up
         for field, total in ITEM_TOTALS.items():
             row[total] = sum_column(row["items"], field)
 
@@ -352,12 +332,9 @@ def flat_items_to_gov(items, keys, money_fields):
 
 
 def groups_from_rows(rows, group_key, group_header, rows_field, write_row):
-    """Our flat rows -> the portal's grouped shape, one group per key.
+    """Our rows -> the portal's grouped shape.
 
-        [{customer_gstin: "24AA...", document_number: "S1"}, ...]
-     -> [{ctin: "24AA...", inv: [{inum: "S1"}, ...]}]
-
-    The first row of a key writes the group's header; later rows only add to its list.
+    [{customer_gstin: "24AA...", document_number: "S1"}]  ->  [{ctin: "24AA...", inv: [{inum: "S1"}]}]
     """
     groups = {}
 
@@ -369,10 +346,9 @@ def groups_from_rows(rows, group_key, group_header, rows_field, write_row):
 
 
 def rows_from_groups(groups, rows_field, group_header, read_row):
-    """The portal's grouped shape -> our flat rows, with the group's own fields on each.
+    """The portal's grouped shape -> our rows, group fields on each.
 
-       [{ctin: "24AA...", inv: [{inum: "S1"}, ...]}]
-    -> [{customer_gstin: "24AA...", document_number: "S1"}, ...]
+    [{ctin: "24AA...", inv: [{inum: "S1"}]}]  ->  [{customer_gstin: "24AA...", document_number: "S1"}]
     """
     for group in groups:
         header = group_header(group)

@@ -1,4 +1,4 @@
-"""Documents issued — serial number ranges used in the period, by document kind (table 13).
+"""Documents issued — serial number ranges used in the period (table 13).
 
 Portal:    {doc_det: [{doc_num: 1, docs: [{num: 1, from: "1", to: "10", totnum: 10, cancel: 0}]}]}
 Canonical: {"Document Issued": {"Invoices for outward supply - 1": {from_sr_no: "1", to_sr_no: "10",
@@ -38,7 +38,7 @@ DOC_NATURE = {
 }
 DOC_NATURE_CODES = s.flip(DOC_NATURE)
 
-# ranges the report tracks but the portal must not see
+# tracked, but the portal must not see it
 NOT_REPORTED = "Excluded from Report"
 
 
@@ -83,15 +83,15 @@ def to_gov(rows, company_gstin=""):
 def from_books(rows):
     """Books ranges -> one row per document kind and starting number.
 
-       [{nature_of_document: "Invoices for outward supply", from_serial_no: "1", ...}]
-    -> {"Document Issued": {"Invoices for outward supply - 1": {from_sr_no: "1", ...}}}
+    [{nature_of_document: "Invoices for outward supply", from_serial_no: "1"}]
+    -> {"Document Issued": {"Invoices for outward supply - 1": {from_sr_no: "1"}}}
     """
     output = {}
 
     for entry in rows:
         key = f"{entry['nature_of_document']} - {entry['from_serial_no']}"
 
-        # the first range for a key wins; the query can repeat one across naming series
+        # first range for a key wins; the query can repeat one
         if key in output:
             continue
 
@@ -109,10 +109,7 @@ def from_books(rows):
 
 
 def net_issued(row):
-    """Drafts never reached anyone, so count them as cancelled; the rest were issued.
-
-    A new row, so counts do not pile up when the same range is written twice.
-    """
+    """Drafts never reached anyone, so count them as cancelled. New row, so counts cannot pile up."""
     cancelled = (row.get(doc.CANCELLED_COUNT) or 0) + (row.get(doc.DRAFT_COUNT) or 0)
 
     return {

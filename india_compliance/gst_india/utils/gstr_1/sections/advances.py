@@ -1,12 +1,10 @@
-"""Advances — tax paid on money received before the invoice, and its later adjustment (tables 11A, 11B).
+"""Advances — tax on money taken before the invoice, and its later adjustment (tables 11A, 11B).
+
+One row per rate. Adjustments are the same shape with the sign flipped.
 
 Portal:    [{pos: "05", itms: [{rt: 5, ad_amt: 100, iamt: 5}]}]
 Canonical: {"Advances Received": {"05-Uttarakhand - 5.0": [{place_of_supply: "05-Uttarakhand",
                                                             total_taxable_value: 100, tax_rate: 5}]}}
-
-One canonical row per rate, so reading splits the portal's item list out into rows and writing
-pulls the amounts back down into items. Adjustments are the same shape with the sign flipped --
-they cancel a liability already declared.
 """
 
 from frappe.utils import flt
@@ -36,7 +34,7 @@ KEYS = {
     raw.ERROR_MSG: doc.ERROR_MSG,
 }
 
-# amounts live on the row itself here, because each item becomes its own row
+# amounts live on the row: each item becomes its own row
 AMOUNTS = (doc.IGST, doc.CESS, doc.CGST, doc.SGST, doc.TAXABLE_VALUE)
 ITEM_DEFAULTS = dict.fromkeys(AMOUNTS, 0)
 
@@ -91,7 +89,7 @@ def to_gov(rows, company_gstin="", multiplier=RECEIVED):
         s.convert(out, raw.POS, s.pos_to_gov)  # 05-Uttarakhand -> 05
         out[raw.SUPPLY_TYPE] = s.supply_type(out[raw.POS], company_gstin)  # seller 24, buyer 05 -> INTER
 
-        # move this row's amounts into an item, leaving the state header behind
+        # amounts go into an item, state header stays
         line = {field: out.pop(field) for field in GOV_ITEM_FIELDS}
 
         by_pos.setdefault(row[doc.POS], out).setdefault(raw.ITEMS, []).append(line)
@@ -102,10 +100,8 @@ def to_gov(rows, company_gstin="", multiplier=RECEIVED):
 def from_books(rows, multiplier=RECEIVED):
     """Books advance entries -> one row per state and rate.
 
-        [{party: "X", taxable_value: 100, tax_amount: 18, place_of_supply: "05-Uttarakhand"}]
-     -> {"05-Uttarakhand - 18.0": [{total_taxable_value: 100, tax_rate: 18}]}
-
-    The rate is worked back out of the tax, because an advance is taken before any line exists.
+    [{party: "X", taxable_value: 100, tax_amount: 18, place_of_supply: "05-Uttarakhand"}]
+    -> {"05-Uttarakhand - 18.0": [{total_taxable_value: 100, tax_rate: 18}]}
     """
     output = {}
 
@@ -126,7 +122,7 @@ def from_books(rows, multiplier=RECEIVED):
         if entry.get("reference_name"):
             row["against_voucher"] = entry["reference_name"]
 
-        # an advance carries no items, so the tax is split here rather than per line
+        # no items on an advance, so split the tax here
         half = entry["tax_amount"] / 2 * multiplier
         row[doc.CGST] = half if intra_state else 0
         row[doc.SGST] = half if intra_state else 0

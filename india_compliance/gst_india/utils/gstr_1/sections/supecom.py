@@ -22,14 +22,14 @@ KEYS = {
     raw.FLAG: doc.FLAG,
 }
 
-# portal json key -> the subcategory its rows are filed under
+# portal json key -> the subcategory it is filed under
 SECTIONS = {
     raw.SUPECOM_52: SubCategory.SUPECOM_52.value,
     raw.SUPECOM_9_5: SubCategory.SUPECOM_9_5.value,
 }
 SECTION_KEYS = s.flip(SECTIONS)
 
-# only the supply value is rounded; the portal sends taxes already rounded here
+# only the supply value is rounded here
 MONEY = (raw.NET_TAXABLE_VALUE,)
 
 
@@ -50,12 +50,10 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows, operator_name):
-    """Books rows -> one row per e-commerce operator, per kind of supply.
+    """Books rows -> one row per operator, per kind of supply.
 
-        {"Liable to collect tax u/s 52(TCS)": {"SINV-1": [item rows]}}
-     -> {"Liable to collect tax u/s 52(TCS)": {"20ALYPD6528PQC5": {total_taxable_value: 10000}}}
-
-    One operator carries many invoices, so each invoice is totalled and then added to the operator.
+    {"Liable to collect tax u/s 52(TCS)": {"SINV-1": [item rows]}}
+    -> {"Liable to collect tax u/s 52(TCS)": {"20ALYPD6528PQC5": {total_taxable_value: 10000}}}
     """
     output = {}
 

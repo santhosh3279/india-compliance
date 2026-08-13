@@ -1,10 +1,6 @@
-"""Move GSTR-1 data between the portal's shape and ours.
+"""Move GSTR-1 data between the portal's shape and ours. One module per category, in `sections/`.
 
-The portal's own docs: https://developer.gst.gov.in/apiportal/taxpayer/returns
-
-Each category is handled by its own module under `sections/`; this file only decides which one
-runs. Reading keeps everything the portal sent, so the payload can always be rebuilt from what we
-stored. Writing rounds amounts; blanks are removed once, where the JSON leaves for the portal.
+Portal docs: https://developer.gst.gov.in/apiportal/taxpayer/returns
 """
 
 from india_compliance.gst_india.utils.gstr_1 import (
@@ -52,8 +48,7 @@ def get_category_wise_data(
 ) -> dict:
     """Collect subcategory rows under the portal category that reports them.
 
-    Example:
-        {"B2B Regular": [...], "SEZ With Payment of Tax": [...]}  ->  {"b2b": [...both...]}
+    {"B2B Regular": [...], "SEZ With Payment of Tax": [...]}  ->  {"b2b": [...both...]}
     """
     category_wise_data = {}
 

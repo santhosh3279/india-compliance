@@ -1,11 +1,8 @@
-"""B2B — invoices to registered buyers, including SEZ and deemed exports (table 4).
+"""B2B — invoices to registered buyers, SEZ and deemed exports (table 4).
 
-Portal groups invoices under the buyer's GSTIN:
-    [{ctin: "24AANFA2641L1ZF", inv: [{inum: "S008400", itms: [{num: 1, itm_det: {txval: 10000}}]}]}]
-
-We keep one row per invoice, filed under the subcategory its invoice type decides:
-    {"B2B Regular": {"S008400": {customer_gstin: "24AANFA...", document_number: "S008400",
-                                 items: [{taxable_value: 10000}], total_taxable_value: 10000}}}
+Portal:    [{ctin: "24AANFA2641L1ZF", inv: [{inum: "S008400", itms: [{num: 1, itm_det: {txval: 10000}}]}]}]
+Canonical: {"B2B Regular": {"S008400": {customer_gstin: "24AANFA...", document_number: "S008400",
+                                        items: [{taxable_value: 10000}], total_taxable_value: 10000}}}
 """
 
 from india_compliance.gst_returns.fields.gstr1 import B2BInvoiceType, SubCategory
@@ -15,7 +12,7 @@ from india_compliance.gst_returns.fields.gstr1 import RawField as raw
 
 from . import _shared as s
 
-# portal key -> canonical name. One table for the invoice and its items -- the portal reuses names.
+# portal key -> canonical name. One table for invoice and items -- the portal reuses names.
 KEYS = {
     raw.FLAG: doc.FLAG,
     raw.DOC_NUMBER: doc.DOC_NUMBER,
@@ -51,7 +48,7 @@ SUBCATEGORY_OF = {
     "DE": SubCategory.DE.value,
 }
 
-# every subcategory B2B reports under
+# what B2B reports under
 SUBCATEGORIES = (
     SubCategory.B2B_REGULAR.value,
     SubCategory.B2B_REVERSE_CHARGE.value,
@@ -106,7 +103,6 @@ def to_canonical(gov_data):
 
 
 def from_books(grouped_rows):
-    """Books rows -> one row per invoice, for the subcategories this category reports."""
     return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 

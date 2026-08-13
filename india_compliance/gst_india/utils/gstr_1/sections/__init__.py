@@ -1,10 +1,6 @@
-"""One module per GSTR-1 category.
+"""One module per GSTR-1 category. Shared steps in `_shared`.
 
-Each module holds everything about its category and nothing about any other: the portal key table,
-the coded values it uses, and one function per direction. Shared steps live in `_shared`.
-
-    reader(gov_data)                 -> {subcategory: {key: row}}
-    writer(rows, company_gstin)      -> the portal's shape for that category
+to_canonical(gov_data) · from_books(rows) · to_gov(rows, company_gstin)
 """
 
 from india_compliance.gst_returns.fields.gstr1 import JsonKey
@@ -27,7 +23,7 @@ from ._shared import strip_empty
 
 __all__ = ["SECTIONS", "strip_empty"]
 
-# portal json key -> how to read it, and how to write it back (summary is read only)
+# portal json key -> reader, writer (summary is read only)
 SECTIONS = {
     JsonKey.B2B.value: (b2b.to_canonical, b2b.to_gov),
     JsonKey.B2CL.value: (b2cl.to_canonical, b2cl.to_gov),

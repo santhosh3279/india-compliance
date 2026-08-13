@@ -36,11 +36,7 @@ from india_compliance.gst_india.utils.gstr_1.sections import (
 
 
 class GSTR1BooksData:
-    """Books data -> canonical GSTR-1.
-
-    Queries the invoices, hands the rows to each category to build its own, and reports what
-    rounding cost. Row building itself lives with the category, in `sections/`.
-    """
+    """Books data -> canonical GSTR-1. Each category builds its own rows, in `sections/`."""
 
     def __init__(self, filters):
         self.filters = filters
@@ -48,11 +44,7 @@ class GSTR1BooksData:
             self.current_month = MONTHS.index(filters.month_or_quarter) + 1
 
     def update_rounding_difference(self, prepared_data, lost_to_rounding):
-        """Report what settling the amounts cost.
-
-        Reported under the invoice total names, because the page offers to post a journal entry
-        from these figures -- that is how the residual gets back into the ledger.
-        """
+        """What settling cost, under the invoice total names -- the page posts a journal entry from these."""
         precision = cint(frappe.db.get_default("currency_precision")) or None
         reported_as = s.flip(s.BOOKS_COLUMNS)
 
@@ -68,11 +60,11 @@ class GSTR1BooksData:
 
         _class = GSTR1Invoices(self.filters)
         data = _class.get_invoices_for_item_wise_summary()
-        _class.process_invoices(data)  # amounts come back settled to two decimals
+        _class.process_invoices(data)  # amounts come back settled
 
         hsn_rows, invoice_rows, nil_rows, b2cs_rows, supecom_rows = self.get_structured_data(data)
 
-        # each category takes the rows it reports and builds them its own way
+        # each category builds the rows it reports
         for section in (b2b, b2cl, exports, cdnr, cdnur):
             prepared_data.update(section.from_books(invoice_rows))
 
@@ -120,15 +112,13 @@ class GSTR1BooksData:
         return self._operator_names[gstin]
 
     def get_structured_data(self, data, only_for_hsn=False):
-        """
-        Invoices are bifurcated into different categories by invoice sub-category, invoice number and GST Rate.
-        - data_for_invoice_no_key: B2B, B2CL, CDNR, CDNUR, etc.
-        - data_for_nil_exempt: Nil Rated, Exempted, Non-GST
-        - data_for_b2cs: B2CS (B2C Others)
-        - data_for_supecom: Supplies through E-commerce Operators (grouped by supply type then operator GSTIN)
+        """Split rows into the buckets each category reports.
 
-        Further all invoices are grouped by HSN code, UOM, and GST rate
-        - data_for_hsn: HSN Summary
+        invoice_rows  B2B, B2CL, exports, both credit notes -- keyed (subcategory, invoice, rate)
+        nil_rows      nil rated, exempted, non-GST
+        b2cs_rows     small sales to unregistered buyers
+        supecom_rows  e-commerce, keyed supply type then invoice
+        hsn_rows      every row again, keyed HSN code, unit and rate
         """
         data_for_invoice_no_key = defaultdict(lambda: defaultdict(list))
         data_for_nil_exempt = defaultdict(lambda: defaultdict(list))

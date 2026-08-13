@@ -1,13 +1,8 @@
 # Copyright (c) 2024, Resilient Tech and Contributors
 # See license.txt
 
-"""Tests for the rules the category modules share.
+"""Tests for the rules the category modules share. Needs a site, no test records.
 
-Guards the behaviour the refactor introduced -- table-ordered keys, blanks kept while reading and
-dropped only at the JSON boundary, money rounded one way only -- and proves every category can
-rebuild the portal payload it was read from.
-
-Needs a site: rounding and the party-name lookup both read site settings.
     bench --site <site> run-tests --module \
         india_compliance.gst_india.utils.gstr_1.sections.test_sections
 """
@@ -354,11 +349,7 @@ class TestCreditNoteSigns(unittest.TestCase):
         self.assertEqual(out[raw.ITEMS][0][raw.ITEM_DETAILS][raw.TAXABLE_VALUE], 5225.28)
 
     def test_deemed_export_note_files_the_portal_code(self):
-        """Books writes one invoice-type label for both B2B and credit notes.
-
-        CDNR used to render "DE" as "Deemed Exports" while books wrote B2B's "Deemed Exp", so the
-        label never translated back and the portal received it verbatim. One table now, both ways.
-        """
+        """Books writes B2B's label for notes too, so CDNR must read "DE" the same way."""
         books_row = {
             doc.CUST_GSTIN: "24AANFA2641L1ZF",
             doc.TRANSACTION_TYPE: "Credit Note",
@@ -633,12 +624,7 @@ def rebuild(reader, writer, payload):
 
 
 class TestRoundTrip(unittest.TestCase):
-    """Everything the portal sent must survive raw -> canonical -> raw, for every category.
-
-    Nothing is dropped while reading any more, so no field can go missing. Two differences are
-    allowed and both are additions, not losses: amounts are rounded to the two decimals the portal
-    accepts, and every item line is filled out with zeros for the amounts it did not carry.
-    """
+    """Everything the portal sent survives raw -> canonical -> raw. Rounding and zero-fill are additions."""
 
     def survives(self, sent, back, path="root"):
         if isinstance(sent, dict):
@@ -668,11 +654,7 @@ class TestRoundTrip(unittest.TestCase):
 
 
 class TestZeroDifference(unittest.TestCase):
-    """A zero rate difference must not reach the portal, which rejects it.
-
-    The old engine dropped it once for every category; now each writer says so itself, so this
-    checks all of them rather than trusting one.
-    """
+    """A zero rate difference must not reach the portal. Every writer now says so itself."""
 
     def test_dropped_by_every_category_that_maps_it(self):
         for name, (reader, writer, payload) in PAYLOADS.items():
@@ -717,11 +699,7 @@ class TestSupplyType(unittest.TestCase):
 
 
 class TestWritingLeavesStoredRowsAlone(unittest.TestCase):
-    """A writer gets the stored rows themselves, so it must not rewrite them.
-
-    `convert_to_gov_data_format` hands its caller's rows straight to each writer. A sign flipped
-    or a count added in place would corrupt what is saved and change the next payload written.
-    """
+    """Writers get the stored rows themselves, so they must not rewrite them."""
 
     def test_no_writer_changes_the_rows_it_was_given(self):
         for name, (reader, writer, payload) in PAYLOADS.items():

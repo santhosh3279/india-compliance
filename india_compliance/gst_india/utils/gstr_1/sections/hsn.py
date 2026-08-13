@@ -1,12 +1,11 @@
-"""HSN summary — quantities and tax per product code, split by buyer type (table 12).
+"""HSN summary — quantity and tax per product code, split by buyer type (table 12).
+
+Older returns use one "data" key instead of the b2b/b2c split; the error response is one object.
 
 Portal:    {hsn_b2b: [{num: 1, hsn_sc: "1102", uqc: "BOX", qty: 2, txval: 100, camt: 0.5}]}
 Canonical: {"HSN Summary - B2B": {"1102 - BOX-BOX - 1.0": {hsn_code: "1102", uom: "BOX-BOX",
                                                            quantity: 2, total_taxable_value: 100,
                                                            document_value: 101}}}
-
-Older returns used a single "data" key instead of the b2b/b2c split, and the portal's error
-response arrives as one object rather than a list. Both shapes are accepted.
 """
 
 from frappe.utils import flt
@@ -86,25 +85,23 @@ def to_canonical(gov_data):
                 s.convert(row, doc.UOM, s.uom_from_gov)  # BOX -> BOX-BOX
                 row[doc.DOC_VALUE] = s.sum_money(row, VALUE_PARTS)  # 100 + 0.5 + 0.5 -> 101
 
-                # the portal reports errors per line; name the code it complained about
+                # name the code the portal complained about
                 if (message := row.get(doc.ERROR_MSG, "").strip()) and (hsn := row.get(doc.HSN_CODE)):
                     row[doc.ERROR_MSG] = f"HSN Code: {hsn} - {message}"
 
                 rows[group_key(entry)] = row  # keyed "1102 - BOX-BOX - 1.0"
 
-            # the error response can repeat a section, so merge rather than replace
+            # the error response can repeat a section, so merge
             output.setdefault(subcategory, {}).update(rows)
 
     return output
 
 
 def from_books(grouped_rows, describe):
-    """Books rows -> one row per product code, unit and rate.
+    """Books rows -> one row per product code, unit and rate. `describe` supplies the description.
 
-        {"HSN Summary - B2B": {"1102 - BOX-BOX - 1.0": [item rows]}}
-     -> {"HSN Summary - B2B": {"1102 - BOX-BOX - 1.0": {quantity: 2, total_taxable_value: 100}}}
-
-    `describe` supplies the code's description; the lookup is a query, so the caller owns it.
+    {"HSN Summary - B2B": {"1102 - BOX-BOX - 1.0": [item rows]}}
+    -> {"HSN Summary - B2B": {"1102 - BOX-BOX - 1.0": {quantity: 2, total_taxable_value: 100}}}
     """
     output = {}
 
