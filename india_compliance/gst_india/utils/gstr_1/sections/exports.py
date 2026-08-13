@@ -31,11 +31,17 @@ KEYS = {
     raw.CESS: item.CESS,
 }
 
+WITH_TAX = "WPAY"
+WITHOUT_TAX = "WOPAY"
+
 # exp_typ -> the subcategory the invoice is filed under
 SUBCATEGORY_OF = {
-    "WPAY": SubCategory.EXPWP.value,
-    "WOPAY": SubCategory.EXPWOP.value,
+    WITH_TAX: SubCategory.EXPWP.value,
+    WITHOUT_TAX: SubCategory.EXPWOP.value,
 }
+
+# every subcategory exports report under
+SUBCATEGORIES = tuple(SUBCATEGORY_OF.values())
 
 ITEM_DEFAULTS = dict.fromkeys(s.ITEM_TOTALS_IGST, 0)
 
@@ -70,6 +76,11 @@ def to_canonical(gov_data):
             invoices[row[doc.DOC_NUMBER]] = row
 
     return output
+
+
+def from_books(grouped_rows):
+    """Books rows -> one row per invoice, for the subcategories this category reports."""
+    return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 
 def to_gov(rows, company_gstin=""):

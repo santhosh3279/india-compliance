@@ -19,8 +19,9 @@ import frappe
 from frappe.utils import flt
 
 from india_compliance.gst_india.utils.gstr_1 import DocField as doc
-from india_compliance.gst_india.utils.gstr_1.gstr_1_books_map import BooksDataMapper
+from india_compliance.gst_india.utils.gstr_1.gstr_1_books_map import GSTR1BooksData
 from india_compliance.gst_india.utils.gstr_1.gstr_1_data import GSTR1Invoices
+from india_compliance.gst_india.utils.gstr_1.sections import hsn
 
 AMOUNTS = ("taxable_value", "igst_amount", "cgst_amount", "sgst_amount", "total_cess_amount")
 
@@ -117,25 +118,37 @@ class TestExactSums(unittest.TestCase):
     """Adding up must not reintroduce the drift that settling removed."""
 
     def test_adding_in_a_loop_drifts_where_adding_at_once_does_not(self):
-        # the reason one filed amount moved by a paisa: `+=` accumulates error, sum() does not
-        values = [8395.11, 5347.35, 2313.09, 11911.048, 2841.241, 7843.225, 613.305]
+        """Why one filed amount moved by a paisa.
+
+        `sum()` compensates for floating-point error; adding in a loop does not. The old mapper
+        added in a loop, so its totals drifted, and a total sitting exactly on a half-paisa then
+        rounded the wrong way.
+        """
+        values = [0.1] * 10
 
         drifted = 0
         for value in values:
             drifted += value
 
-        self.assertNotEqual(repr(drifted), repr(sum(values)))
-        self.assertEqual(sum(values), 39264.369)
+        self.assertEqual(drifted, 0.9999999999999999)
+        self.assertEqual(sum(values), 1.0)
+
+    def test_amounts_are_added_at_once_everywhere(self):
+        # sum_column is what every category uses to total a settled amount
+        from india_compliance.gst_india.utils.gstr_1.sections._shared import sum_column
+
+        rows = [{"cgst_amount": 0.1} for _ in range(10)]
+        self.assertEqual(sum_column(rows, "cgst_amount"), 1.0)
 
 
 class TestNoReconciliationLeft(unittest.TestCase):
     def test_the_hsn_adjustment_is_gone(self):
         # it existed only to force HSN totals onto the document totals
-        self.assertFalse(hasattr(BooksDataMapper, "adjust_hsn_totals"))
+        self.assertFalse(hasattr(GSTR1BooksData, "adjust_hsn_totals"))
 
     def test_the_cross_section_accumulator_is_gone(self):
         # HSN used to read totals the other sections had written, so it had to run last
-        self.assertFalse(hasattr(BooksDataMapper, "initialize_totals"))
+        self.assertFalse(hasattr(GSTR1BooksData, "initialize_totals"))
 
 
 class TestRoundingDifferenceReport(unittest.TestCase):
@@ -150,7 +163,7 @@ class TestRoundingDifferenceReport(unittest.TestCase):
 
     def report(self, lost):
         prepared = {}
-        BooksDataMapper().update_rounding_difference(prepared, lost)
+        GSTR1BooksData({}).update_rounding_difference(prepared, lost)
         return prepared["rounding_difference"]["rounding_difference"]
 
     def test_reported_under_the_invoice_total_names(self):
@@ -173,9 +186,7 @@ class TestHsnRowsAddUp(unittest.TestCase):
         It adjusted the tax amounts after `document_value` had already been worked out, leaving the
         row claiming a total its own columns no longer added up to.
         """
-        mapper = BooksDataMapper()
-        prepared = {}
-        mapper.process_data_for_hsn_summary(
+        prepared = hsn.from_books(
             {
                 "HSN Summary": {
                     "1001 - NOS-NUMBERS - 18.0": [
@@ -184,7 +195,7 @@ class TestHsnRowsAddUp(unittest.TestCase):
                     ]
                 }
             },
-            prepared,
+            lambda code: "a description",
         )
 
         for hsn_row in prepared["HSN Summary"].values():

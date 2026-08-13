@@ -36,8 +36,14 @@ KEYS = {
     raw.ERROR_MSG: doc.ERROR_MSG,
 }
 
+EXPORT_WITH_TAX = "EXPWP"
+EXPORT_WITHOUT_TAX = "EXPWOP"
+LARGE_UNREGISTERED = "B2CL"
+
 # exports have no place of supply to report
-EXPORT_TYPES = ("EXPWP", "EXPWOP")
+EXPORT_TYPES = (EXPORT_WITH_TAX, EXPORT_WITHOUT_TAX)
+
+SUBCATEGORIES = (SUBCATEGORY,)
 
 ITEM_DEFAULTS = dict.fromkeys(s.ITEM_TOTALS_IGST, 0)
 ITEM_AMOUNTS = tuple(ITEM_DEFAULTS)
@@ -67,6 +73,11 @@ def to_canonical(gov_data):
         output[row[doc.DOC_NUMBER]] = row
 
     return {SUBCATEGORY: output}
+
+
+def from_books(grouped_rows):
+    """Books rows -> one row per invoice, for the subcategories this category reports."""
+    return s.invoice_rows_from_books(grouped_rows, SUBCATEGORIES)
 
 
 def to_gov(rows, company_gstin=""):

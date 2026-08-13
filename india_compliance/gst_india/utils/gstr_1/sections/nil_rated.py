@@ -7,6 +7,8 @@ Canonical: {"Nil-Rated, Exempted, Non-GST": {
                      non_gst_amount: 1258.5, total_taxable_value: 2852.8}]}}
 """
 
+from itertools import chain
+
 from india_compliance.gst_returns.fields.gstr1 import DocField as doc
 from india_compliance.gst_returns.fields.gstr1 import NilRatedCategory, SubCategory
 from india_compliance.gst_returns.fields.gstr1 import RawField as raw
@@ -22,6 +24,12 @@ KEYS = {
     raw.NON_GST_AMOUNT: doc.NON_GST_AMOUNT,
 }
 
+
+def supply_code(inter_state, registered):
+    """The portal's sply_ty for a supply, from who bought it and from where."""
+    return ("INTR" if inter_state else "INTRA") + ("B2B" if registered else "B2C")
+
+
 # sply_ty -> readable supply type
 SUPPLY_TYPES = {
     "INTRB2B": NilRatedCategory.INTER_B2B.value,
@@ -30,6 +38,13 @@ SUPPLY_TYPES = {
     "INTRAB2C": NilRatedCategory.INTRA_B2C.value,
 }
 SUPPLY_CODES = s.flip(SUPPLY_TYPES)
+
+# books gst_treatment -> the amount it belongs to
+BOOKS_TREATMENTS = {
+    "Nil-Rated": doc.NIL_RATED_AMOUNT,
+    "Exempted": doc.EXEMPTED_AMOUNT,
+    "Non-GST": doc.NON_GST_AMOUNT,
+}
 
 # the three amounts that make up the taxable value
 AMOUNTS = (doc.EXEMPTED_AMOUNT, doc.NIL_RATED_AMOUNT, doc.NON_GST_AMOUNT)
@@ -58,6 +73,43 @@ def to_canonical(gov_data):
         output.setdefault(row.get(doc.DOC_TYPE), []).append(row)
 
     return {SUBCATEGORY: output}
+
+
+def from_books(grouped_rows):
+    """Books rows -> one row per invoice, bucketed by the kind of supply it was.
+
+       {(_, "SINV-1"): {0.0: [item rows]}}
+    -> {"Nil-Rated, Exempted, Non-GST": {"Inter-State supplies to registered persons": [{...}]}}
+    """
+    output = {}
+
+    for rows_by_rate in grouped_rows.values():
+        lines = list(chain(*rows_by_rate.values()))
+        first = lines[0]
+
+        row = {
+            doc.TRANSACTION_TYPE: s.transaction_type(first),
+            doc.CUST_GSTIN: first.billing_address_gstin,
+            doc.CUST_NAME: first.customer_name,
+            doc.DOC_NUMBER: first.invoice_no,
+            doc.DOC_DATE: first.posting_date,
+            doc.DOC_VALUE: first.invoice_total,
+            doc.POS: first.place_of_supply,
+            doc.REVERSE_CHARGE: ("Y" if first.is_reverse_charge else "N"),
+            doc.DOC_TYPE: first.invoice_type,
+            doc.TAXABLE_VALUE: s.sum_column(lines, "taxable_value"),
+            **{
+                field: s.sum_column(
+                    [line for line in lines if line.gst_treatment == treatment], "taxable_value"
+                )
+                for treatment, field in BOOKS_TREATMENTS.items()
+            },
+        }
+
+        output.setdefault(first.invoice_type, []).append(row)
+
+    # nothing to report means no section at all, not an empty one
+    return {SUBCATEGORY: output} if output else {}
 
 
 def to_gov(rows, company_gstin=""):
